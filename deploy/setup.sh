@@ -29,6 +29,7 @@ elif [ ! -f .env ]; then
 fi
 
 echo "=== [4/6] Docker pull & run (port 8002) ==="
+docker builder prune -af >/dev/null 2>&1 || true
 docker compose pull
 docker compose up -d
 
