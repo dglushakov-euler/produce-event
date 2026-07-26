@@ -1,4 +1,8 @@
-name: Build and Deploy
+name: Build and Publish
+
+# The VPS cannot reliably accept inbound SSH (provider-side filtering),
+# so deploys are pull-based: Actions builds and pushes the image to ghcr.io,
+# and Watchtower on the server picks it up within ~2 minutes.
 
 on:
   push:
@@ -29,29 +33,3 @@ jobs:
           tags: ghcr.io/dglushakov-euler/produce-event:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
-          envs: GHCR_TOKEN
-          script: |
-            echo $GHCR_TOKEN | docker login ghcr.io -u dglushakov-euler --password-stdin
-            cd ~/produce-event
-            git pull
-            docker compose pull
-            docker compose up -d
-            docker logout ghcr.io
-            docker image prune -f
