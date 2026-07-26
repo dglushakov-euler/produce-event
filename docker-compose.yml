@@ -3,8 +3,12 @@ services:
     image: ghcr.io/dglushakov-euler/produce-event:latest
     container_name: produce-event
     restart: unless-stopped
-    ports:
-      - "8002:3000"
+    # Host networking: the container shares the host network stack, which
+    # gives it IPv6 — api.telegram.org is IPv4-blocked on this network but
+    # reachable over IPv6 (Node's Happy Eyeballs picks the working family).
+    network_mode: host
+    environment:
+      - PORT=8002
     env_file:
       - .env
 
