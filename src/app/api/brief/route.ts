@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendLeadAutoReply } from "@/lib/email";
 
 // Lead form → Telegram bot.
 // Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.local (see .env.example).
@@ -62,6 +63,13 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[brief] Telegram request failed:", err);
     return NextResponse.json({ ok: false, error: "telegram_unreachable" }, { status: 502 });
+  }
+
+  // Auto-reply to the client. Never blocks the lead: Telegram already succeeded.
+  try {
+    await sendLeadAutoReply(email, name);
+  } catch (err) {
+    console.error("[brief] auto-reply email failed:", err);
   }
 
   return NextResponse.json({ ok: true });
