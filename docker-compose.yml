@@ -9,10 +9,27 @@ services:
     network_mode: host
     environment:
       - PORT=8002
+      - LEADS_FILE=/app/data/leads.jsonl
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
 
-  # Auto-deploy: polls ghcr.io every 2 min and restarts the container
+  # Lead-management bot: status buttons + reminders (long polling).
+  bot:
+    image: ghcr.io/dglushakov-euler/produce-event:latest
+    container_name: produce-event-bot
+    restart: unless-stopped
+    network_mode: host
+    command: ["node", "bot/bot.js"]
+    environment:
+      - LEADS_FILE=/app/data/leads.jsonl
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+
+  # Auto-deploy: polls ghcr.io every 2 min and restarts containers
   # when a new image is pushed by GitHub Actions.
   watchtower:
     image: containrrr/watchtower
@@ -20,4 +37,4 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 120 --cleanup produce-event
+    command: --interval 120 --cleanup produce-event produce-event-bot

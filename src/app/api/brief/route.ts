@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
 import { sendLeadAutoReply } from "@/lib/email";
+import { appendFileSync, mkdirSync } from "fs";
+import path from "path";
+
+// Shared with the bot container (see bot/bot.js) — lead status tracking.
+const LEADS_FILE =
+  process.env.LEADS_FILE || path.join(process.cwd(), "data", "leads.jsonl");
+
+const STATUS_KEYBOARD = {
+  inline_keyboard: [
+    [{ text: "🟢 Взять в работу", callback_data: "st:work" }],
+    [
+      { text: "📨 КП", callback_data: "st:kp" },
+      { text: "🥂 Сделка", callback_data: "st:deal" },
+      { text: "⚪ Отказ", callback_data: "st:lost" },
+    ],
+  ],
+};
 
 // Lead form → Telegram bot.
 // Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.local (see .env.example).
@@ -52,13 +69,33 @@ export async function POST(req: Request) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        reply_markup: STATUS_KEYBOARD,
+      }),
     });
 
     if (!res.ok) {
       const body = await res.text();
       console.error("[brief] Telegram API error:", res.status, body);
       return NextResponse.json({ ok: false, error: "telegram_failed" }, { status: 502 });
+    }
+
+    // Record the lead for the bot (status buttons + reminders). Best-effort.
+    try {
+      const sent = await res.json();
+      const msgId = sent.result?.message_id;
+      if (msgId) {
+        mkdirSync(path.dirname(LEADS_FILE), { recursive: true });
+        appendFileSync(
+          LEADS_FILE,
+          JSON.stringify({ type: "lead", id: msgId, name, html: text, ts: Date.now() }) + "\n"
+        );
+      }
+    } catch (err) {
+      console.error("[brief] lead log failed:", err);
     }
   } catch (err) {
     console.error("[brief] Telegram request failed:", err);
