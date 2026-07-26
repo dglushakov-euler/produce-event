@@ -28,8 +28,9 @@ elif [ ! -f .env ]; then
   touch .env
 fi
 
-echo "=== [4/6] Docker build & run (port 8002) ==="
-docker compose up -d --build
+echo "=== [4/6] Docker pull & run (port 8002) ==="
+docker compose pull
+docker compose up -d
 
 echo "=== [5/6] Nginx ==="
 cat > /etc/nginx/sites-available/produce-event <<'NGINX'
